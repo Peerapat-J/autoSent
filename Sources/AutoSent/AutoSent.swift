@@ -8,6 +8,8 @@ private let lineBundleID = "jp.naver.line.mac"
 
 private struct DraftSnapshot {
     let processID: pid_t
+    let roomWindow: AXUIElement
+    let roomTitle: String
     let composer: AXUIElement
     let text: String
 }
@@ -98,9 +100,25 @@ private final class Scheduler: ObservableObject {
             return
         }
 
-        snapshot = DraftSnapshot(processID: line.processIdentifier, composer: composer, text: draft)
+        guard let roomWindow = readElement(composer, kAXWindowAttribute as String)
+                ?? readElement(composer, kAXTopLevelUIElementAttribute as String),
+              let focusedWindow = readElement(lineAX, kAXFocusedWindowAttribute as String),
+              CFEqual(roomWindow, focusedWindow),
+              let roomTitle = readString(roomWindow, kAXTitleAttribute as String),
+              DraftGuard.isBindableRoomTitle(roomTitle) else {
+            finish("ตั้งเวลาไม่สำเร็จ: เปิดห้อง LINE เป็นหน้าต่างแยกที่แสดงชื่อห้อง แล้วลองใหม่")
+            return
+        }
+
+        snapshot = DraftSnapshot(
+            processID: line.processIdentifier,
+            roomWindow: roomWindow,
+            roomTitle: roomTitle,
+            composer: composer,
+            text: draft
+        )
         phase = .armed
-        status = "ตั้งเวลาแล้ว • จะส่งร่างเดิมจากช่องนี้เท่านั้น • หน้าจอไม่ดับจากการไม่ได้ใช้งาน"
+        status = "ตั้งเวลาแล้วสำหรับห้อง \(roomTitle) • หน้าจอไม่ดับจากการไม่ได้ใช้งาน"
         updateRemaining()
 
         let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] _ in
@@ -112,8 +130,11 @@ private final class Scheduler: ObservableObject {
 
     private func tick() {
         guard phase == .armed, let scheduledDate else { return }
-        if Date.now >= scheduledDate {
+        let now = Date.now
+        if DraftGuard.isDueAndFresh(scheduledDate: scheduledDate, now: now) {
             sendOnce()
+        } else if now > scheduledDate {
+            finish("ไม่ได้ส่ง: เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน 15 วินาที")
         } else {
             updateRemaining()
         }
@@ -153,18 +174,26 @@ private final class Scheduler: ObservableObject {
             return
         }
 
+        guard AXUIElementPerformAction(snapshot.roomWindow, kAXRaiseAction as CFString) == .success else {
+            finish("ไม่ได้ส่ง: หน้าต่างห้อง LINE ที่จับไว้ปิดไปแล้วหรือเปิดไม่ได้")
+            return
+        }
+
+        let lineAX = AXUIElementCreateApplication(snapshot.processID)
         for _ in 0..<10 {
-            if NSWorkspace.shared.frontmostApplication?.processIdentifier == snapshot.processID {
+            let lineIsFrontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == snapshot.processID
+            let focusedWindow = readElement(lineAX, kAXFocusedWindowAttribute as String)
+            if lineIsFrontmost && focusedWindow.map({ CFEqual($0, snapshot.roomWindow) }) == true {
                 break
             }
             try? await Task.sleep(for: .milliseconds(100))
         }
 
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == snapshot.processID
-        let focused = readElement(
-            AXUIElementCreateApplication(snapshot.processID),
-            kAXFocusedUIElementAttribute as String
-        )
+        let currentWindow = readElement(lineAX, kAXFocusedWindowAttribute as String)
+        let sameRoomWindow = currentWindow.map { CFEqual($0, snapshot.roomWindow) } ?? false
+        let currentRoomTitle = currentWindow.flatMap { readString($0, kAXTitleAttribute as String) }
+        let focused = readElement(lineAX, kAXFocusedUIElementAttribute as String)
         let sameComposer = focused.map { CFEqual($0, snapshot.composer) } ?? false
         let currentDraft = focused.flatMap { readString($0, kAXValueAttribute as String) }
 
@@ -172,16 +201,25 @@ private final class Scheduler: ObservableObject {
             expectedDraft: snapshot.text,
             currentDraft: currentDraft,
             sameComposer: sameComposer,
+            sameRoomWindow: sameRoomWindow,
+            expectedRoomTitle: snapshot.roomTitle,
+            currentRoomTitle: currentRoomTitle,
             lineIsFrontmost: frontmost,
             originalProcessIsRunning: !line.isTerminated
         ) else {
-            finish("ไม่ได้ส่ง: ห้อง/ช่องพิมพ์เปลี่ยนไป ข้อความร่างถูกแก้ หรือ LINE ไม่อยู่ด้านหน้า")
+            finish("ไม่ได้ส่ง: หน้าต่าง/ชื่อห้อง/ช่องพิมพ์เปลี่ยน ข้อความร่างถูกแก้ หรือ LINE ไม่อยู่ด้านหน้า")
             return
         }
 
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0x24, keyDown: true),
               let up = CGEvent(keyboardEventSource: nil, virtualKey: 0x24, keyDown: false) else {
             finish("ไม่ได้ส่ง: สร้างปุ่ม Enter ไม่สำเร็จ")
+            return
+        }
+
+        guard let scheduledDate,
+              DraftGuard.isDueAndFresh(scheduledDate: scheduledDate, now: .now) else {
+            finish("ไม่ได้ส่ง: เลยเวลาที่ตั้งไว้เกิน 15 วินาทีก่อนกด Enter")
             return
         }
 
@@ -231,7 +269,7 @@ private struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("autoSent for LINE")
                 .font(.title.bold())
-            Text("ส่งข้อความร่างที่พิมพ์ไว้แล้ว ด้วย Enter หนึ่งครั้งตามเวลา")
+            Text("ส่งข้อความร่างในหน้าต่างแชต LINE แยก ด้วย Enter หนึ่งครั้งตามเวลา")
                 .foregroundStyle(.secondary)
 
             DatePicker(
@@ -260,7 +298,7 @@ private struct ContentView: View {
                 Spacer()
             }
 
-            Text("เปิด LINE และร่างข้อความในห้องที่ถูกต้องไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • ปิดฝาเครื่องหรือสั่ง Sleep เองยังทำให้เครื่องพักได้")
+            Text("เปิดห้อง LINE เป็นหน้าต่างแยกและร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยเวลาเกิน 15 วินาทีจะไม่ส่ง")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
