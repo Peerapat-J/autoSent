@@ -1,0 +1,126 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00000000000000000000001 /* AutoSent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* AutoSent.swift */; };
+		B00000000000000000000002 /* DraftGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* DraftGuard.swift */; };
+		B00000000000000000000003 /* DraftGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* DraftGuard.swift */; };
+		B00000000000000000000004 /* DraftGuardXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* DraftGuardXCTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D00000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000001;
+			remoteInfo = autoSent;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C00000000000000000000001 /* AutoSent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoSent.swift; sourceTree = "<group>"; };
+		C00000000000000000000002 /* DraftGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftGuard.swift; sourceTree = "<group>"; };
+		C00000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C00000000000000000000004 /* DraftGuardXCTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftGuardXCTests.swift; sourceTree = "<group>"; };
+		C00000000000000000000005 /* autoSent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = autoSent.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000006 /* autoSentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = autoSentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F00000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		F00000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G00000000000000000000001 = {
+			isa = PBXGroup;
+			children = (G00000000000000000000002 /* Sources */, G00000000000000000000004 /* Tests */, G00000000000000000000005 /* Resources */, G00000000000000000000006 /* Products */);
+			sourceTree = "<group>";
+		};
+		G00000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (G00000000000000000000003 /* AutoSent */); path = Sources; sourceTree = "<group>"; };
+		G00000000000000000000003 /* AutoSent */ = {isa = PBXGroup; children = (C00000000000000000000001 /* AutoSent.swift */, C00000000000000000000002 /* DraftGuard.swift */); path = AutoSent; sourceTree = "<group>"; };
+		G00000000000000000000004 /* Tests */ = {isa = PBXGroup; children = (C00000000000000000000004 /* DraftGuardXCTests.swift */); path = Tests; sourceTree = "<group>"; };
+		G00000000000000000000005 /* Resources */ = {isa = PBXGroup; children = (C00000000000000000000003 /* Info.plist */); path = Resources; sourceTree = "<group>"; };
+		G00000000000000000000006 /* Products */ = {isa = PBXGroup; children = (C00000000000000000000005 /* autoSent.app */, C00000000000000000000006 /* autoSentTests.xctest */); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000001 /* autoSent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L00000000000000000000002 /* Build configuration list for PBXNativeTarget "autoSent" */;
+			buildPhases = (S00000000000000000000001 /* Sources */, F00000000000000000000001 /* Frameworks */);
+			buildRules = ();
+			dependencies = ();
+			name = autoSent;
+			productName = autoSent;
+			productReference = C00000000000000000000005 /* autoSent.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000002 /* autoSentTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = L00000000000000000000003 /* Build configuration list for PBXNativeTarget "autoSentTests" */;
+			buildPhases = (S00000000000000000000002 /* Sources */, F00000000000000000000002 /* Frameworks */);
+			buildRules = ();
+			dependencies = (N00000000000000000000001 /* PBXTargetDependency */);
+			name = autoSentTests;
+			productName = autoSentTests;
+			productReference = C00000000000000000000006 /* autoSentTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					A00000000000000000000001 = { CreatedOnToolsVersion = 27.0; };
+					A00000000000000000000002 = { CreatedOnToolsVersion = 27.0; };
+				};
+			};
+			buildConfigurationList = L00000000000000000000001 /* Build configuration list for PBXProject "autoSent" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = th;
+			hasScannedForEncodings = 0;
+			knownRegions = (th, en, Base);
+			mainGroup = G00000000000000000000001;
+			productRefGroup = G00000000000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A00000000000000000000001 /* autoSent */, A00000000000000000000002 /* autoSentTests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		S00000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000001 /* AutoSent.swift in Sources */, B00000000000000000000002 /* DraftGuard.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		S00000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000003 /* DraftGuard.swift in Sources */, B00000000000000000000004 /* DraftGuardXCTests.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		N00000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A00000000000000000000001 /* autoSent */; targetProxy = D00000000000000000000001 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		H00000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
+		H00000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Release; };
+		H00000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resources/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = com.peerapatj.autoSent; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		H00000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resources/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = com.peerapatj.autoSent; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; name = Release; };
+		H00000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.peerapatj.autoSentTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		H00000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.peerapatj.autoSentTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_OPTIMIZATION_LEVEL = "-O"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		L00000000000000000000001 /* Build configuration list for PBXProject "autoSent" */ = {isa = XCConfigurationList; buildConfigurations = (H00000000000000000000001 /* Debug */, H00000000000000000000002 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		L00000000000000000000002 /* Build configuration list for PBXNativeTarget "autoSent" */ = {isa = XCConfigurationList; buildConfigurations = (H00000000000000000000003 /* Debug */, H00000000000000000000004 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		L00000000000000000000003 /* Build configuration list for PBXNativeTarget "autoSentTests" */ = {isa = XCConfigurationList; buildConfigurations = (H00000000000000000000005 /* Debug */, H00000000000000000000006 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = E00000000000000000000001 /* Project object */;
+}

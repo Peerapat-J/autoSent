@@ -16,7 +16,9 @@
 
 ## สร้างและตรวจสอบ
 
-ต้องใช้ macOS 13 ขึ้นไป, Mac Apple silicon และ Xcode Command Line Tools
+ต้องใช้ macOS 13 ขึ้นไป และ Mac Apple silicon เปิด `autoSent.xcodeproj` ใน Xcode แล้วเลือก scheme **autoSent** เพื่อใช้ **Product → Build** หรือ **Product → Test** แอปที่ Xcode สร้างอยู่ใน DerivedData
+
+ถ้าต้องการสร้างแอปที่ `build/autoSent.app` หรือรันชุดทดสอบผ่าน Terminal ให้ใช้ Xcode Command Line Tools:
 
 ```sh
 ./scripts/build.sh
