@@ -39,6 +39,25 @@ final class DraftGuardXCTests: XCTestCase {
         XCTAssertTrue(DraftGuard.isBindableRoomTitle("ทีมพัฒนา"))
     }
 
+    func testMainRoomRejectsDifferentSelectedRowEvenWithSameName() {
+        XCTAssertTrue(DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ทีมพัฒนา", sameSelectedRow: true,
+            expectedIdentifier: "room-1", currentIdentifier: "room-1"
+        ))
+        XCTAssertFalse(DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ทีมพัฒนา", sameSelectedRow: false,
+            expectedIdentifier: "room-1", currentIdentifier: "room-1"
+        ))
+        XCTAssertFalse(DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ห้องอื่น", sameSelectedRow: true,
+            expectedIdentifier: "room-1", currentIdentifier: "room-1"
+        ))
+        XCTAssertFalse(DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ทีมพัฒนา", sameSelectedRow: true,
+            expectedIdentifier: "room-1", currentIdentifier: "room-2"
+        ))
+    }
+
     func testDeadlineRejectsLateWake() {
         let deadline = Date(timeIntervalSince1970: 1_000)
         XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1)))

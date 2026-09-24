@@ -35,6 +35,14 @@ struct DraftGuardTests {
         precondition(!DraftGuard.isBindableRoomTitle(nil))
         precondition(!DraftGuard.isBindableRoomTitle(" LINE "))
         precondition(DraftGuard.isBindableRoomTitle("ทีมพัฒนา"))
+        precondition(DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ทีมพัฒนา", sameSelectedRow: true,
+            expectedIdentifier: nil, currentIdentifier: nil
+        ))
+        precondition(!DraftGuard.mainRoomIsUnchanged(
+            expectedName: "ทีมพัฒนา", currentName: "ทีมพัฒนา", sameSelectedRow: false,
+            expectedIdentifier: nil, currentIdentifier: nil
+        ))
 
         let deadline = Date(timeIntervalSince1970: 1_000)
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1)))

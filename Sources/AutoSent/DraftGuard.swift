@@ -14,6 +14,19 @@ enum DraftGuard {
         return lateness >= 0 && lateness <= maximumLateness
     }
 
+    static func mainRoomIsUnchanged(
+        expectedName: String,
+        currentName: String?,
+        sameSelectedRow: Bool,
+        expectedIdentifier: String?,
+        currentIdentifier: String?
+    ) -> Bool {
+        sameSelectedRow
+            && isBindableRoomTitle(expectedName)
+            && currentName == expectedName
+            && currentIdentifier == expectedIdentifier
+    }
+
     static func allowsSend(
         expectedDraft: String,
         currentDraft: String?,

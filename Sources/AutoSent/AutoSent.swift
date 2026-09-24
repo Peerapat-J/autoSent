@@ -6,10 +6,20 @@ import SwiftUI
 
 private let lineBundleID = "jp.naver.line.mac"
 
+private enum RoomMode: String, CaseIterable, Identifiable {
+    case main = "หน้าต่างหลัก"
+    case separate = "หน้าต่างแชตแยก"
+
+    var id: Self { self }
+}
+
 private struct DraftSnapshot {
     let processID: pid_t
     let roomWindow: AXUIElement
     let roomTitle: String
+    let roomMode: RoomMode
+    let selectedRoomRow: AXUIElement?
+    let roomIdentifier: String?
     let composer: AXUIElement
     let text: String
 }
@@ -26,6 +36,7 @@ private final class Scheduler: ObservableObject {
         matchingPolicy: .nextTime
     ) ?? Date.now.addingTimeInterval(60 * 60)
     @Published var phase: Phase = .idle
+    @Published var roomMode: RoomMode = .main
     @Published var status = "พิมพ์ข้อความร่างในห้อง LINE ที่ต้องการ แล้วตั้งเวลาส่ง"
     @Published var remaining = ""
 
@@ -103,17 +114,42 @@ private final class Scheduler: ObservableObject {
         guard let roomWindow = readElement(composer, kAXWindowAttribute as String)
                 ?? readElement(composer, kAXTopLevelUIElementAttribute as String),
               let focusedWindow = readElement(lineAX, kAXFocusedWindowAttribute as String),
-              CFEqual(roomWindow, focusedWindow),
-              let roomTitle = readString(roomWindow, kAXTitleAttribute as String),
-              DraftGuard.isBindableRoomTitle(roomTitle) else {
-            finish("ตั้งเวลาไม่สำเร็จ: เปิดห้อง LINE เป็นหน้าต่างแยกที่แสดงชื่อห้อง แล้วลองใหม่")
+              CFEqual(roomWindow, focusedWindow) else {
+            finish("ตั้งเวลาไม่สำเร็จ: ระบุหน้าต่าง LINE ที่กำลังพิมพ์ไม่ได้")
             return
+        }
+
+        let roomTitle: String
+        var selectedRoomRow: AXUIElement?
+        var roomIdentifier: String?
+        switch roomMode {
+        case .separate:
+            guard let title = readString(roomWindow, kAXTitleAttribute as String),
+                  DraftGuard.isBindableRoomTitle(title) else {
+                finish("ตั้งเวลาไม่สำเร็จ: หน้าต่างแชตแยกไม่แสดงชื่อห้องผ่าน Accessibility")
+                return
+            }
+            roomTitle = title
+        case .main:
+            guard readString(roomWindow, kAXTitleAttribute as String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .caseInsensitiveCompare("LINE") == .orderedSame,
+                  let selected = selectedMainRoom(in: roomWindow) else {
+                finish("ตั้งเวลาไม่สำเร็จ: LINE ไม่เปิดเผยรายการห้องที่เลือกผ่าน Accessibility; ลองใช้หน้าต่างแชตแยก")
+                return
+            }
+            roomTitle = selected.name
+            selectedRoomRow = selected.row
+            roomIdentifier = selected.identifier
         }
 
         snapshot = DraftSnapshot(
             processID: line.processIdentifier,
             roomWindow: roomWindow,
             roomTitle: roomTitle,
+            roomMode: roomMode,
+            selectedRoomRow: selectedRoomRow,
+            roomIdentifier: roomIdentifier,
             composer: composer,
             text: draft
         )
@@ -192,7 +228,26 @@ private final class Scheduler: ObservableObject {
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == snapshot.processID
         let currentWindow = readElement(lineAX, kAXFocusedWindowAttribute as String)
         let sameRoomWindow = currentWindow.map { CFEqual($0, snapshot.roomWindow) } ?? false
-        let currentRoomTitle = currentWindow.flatMap { readString($0, kAXTitleAttribute as String) }
+        let currentRoomTitle: String?
+        let sameRoomIdentity: Bool
+        switch snapshot.roomMode {
+        case .separate:
+            currentRoomTitle = currentWindow.flatMap { readString($0, kAXTitleAttribute as String) }
+            sameRoomIdentity = sameRoomWindow
+        case .main:
+            let selected = currentWindow.flatMap { selectedMainRoom(in: $0) }
+            currentRoomTitle = selected?.name
+            sameRoomIdentity = sameRoomWindow
+                && DraftGuard.mainRoomIsUnchanged(
+                    expectedName: snapshot.roomTitle,
+                    currentName: selected?.name,
+                    sameSelectedRow: selected.flatMap { current in
+                        snapshot.selectedRoomRow.map { CFEqual(current.row, $0) }
+                    } == true,
+                    expectedIdentifier: snapshot.roomIdentifier,
+                    currentIdentifier: selected?.identifier
+                )
+        }
         let focused = readElement(lineAX, kAXFocusedUIElementAttribute as String)
         let sameComposer = focused.map { CFEqual($0, snapshot.composer) } ?? false
         let currentDraft = focused.flatMap { readString($0, kAXValueAttribute as String) }
@@ -201,13 +256,13 @@ private final class Scheduler: ObservableObject {
             expectedDraft: snapshot.text,
             currentDraft: currentDraft,
             sameComposer: sameComposer,
-            sameRoomWindow: sameRoomWindow,
+            sameRoomWindow: sameRoomIdentity,
             expectedRoomTitle: snapshot.roomTitle,
             currentRoomTitle: currentRoomTitle,
             lineIsFrontmost: frontmost,
             originalProcessIsRunning: !line.isTerminated
         ) else {
-            finish("ไม่ได้ส่ง: หน้าต่าง/ชื่อห้อง/ช่องพิมพ์เปลี่ยน ข้อความร่างถูกแก้ หรือ LINE ไม่อยู่ด้านหน้า")
+            finish("ไม่ได้ส่ง: ห้อง LINE/ช่องพิมพ์เปลี่ยน ข้อความร่างถูกแก้ หรือ LINE ไม่อยู่ด้านหน้า")
             return
         }
 
@@ -260,6 +315,66 @@ private final class Scheduler: ObservableObject {
         }
         return value as? String
     }
+
+    private func readElements(_ element: AXUIElement, _ attribute: String) -> [AXUIElement] {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+              let elements = value as? [AXUIElement] else { return [] }
+        return elements
+    }
+
+    private func readBool(_ element: AXUIElement, _ attribute: String) -> Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
+            return false
+        }
+        return value as? Bool == true
+    }
+
+    private func roomName(of row: AXUIElement) -> String? {
+        let ownName = readString(row, kAXTitleAttribute as String)
+            ?? readString(row, kAXDescriptionAttribute as String)
+        if DraftGuard.isBindableRoomTitle(ownName) { return ownName }
+
+        // LINE may put the room name in the first accessible label within a chat row.
+        for child in readElements(row, kAXChildrenAttribute as String).prefix(8) {
+            let name = readString(child, kAXTitleAttribute as String)
+                ?? readString(child, kAXValueAttribute as String)
+            if DraftGuard.isBindableRoomTitle(name) { return name }
+        }
+        return nil
+    }
+
+    private func selectedMainRoom(in window: AXUIElement) -> (row: AXUIElement, name: String, identifier: String?)? {
+        var queue: [(AXUIElement, Int)] = [(window, 0)]
+        var selectedRows: [AXUIElement] = []
+        var visited = 0
+        while !queue.isEmpty && visited < 500 {
+            let (element, depth) = queue.removeFirst()
+            visited += 1
+            if readString(element, kAXRoleAttribute as String) == (kAXListRole as String) {
+                var selected = readElements(element, kAXSelectedRowsAttribute as String)
+                if selected.isEmpty {
+                    selected = readElements(element, kAXSelectedChildrenAttribute as String)
+                }
+                if selected.isEmpty {
+                    selected = readElements(element, kAXChildrenAttribute as String).filter {
+                        readBool($0, kAXSelectedAttribute as String)
+                    }
+                }
+                selectedRows.append(contentsOf: selected.filter {
+                    readString($0, kAXRoleAttribute as String) == (kAXRowRole as String)
+                })
+            }
+            if depth < 5 {
+                queue.append(contentsOf: readElements(element, kAXChildrenAttribute as String).map { ($0, depth + 1) })
+            }
+        }
+        guard selectedRows.count == 1,
+              let row = selectedRows.first,
+              let name = roomName(of: row) else { return nil }
+        return (row, name, readString(row, kAXIdentifierAttribute as String))
+    }
 }
 
 private struct ContentView: View {
@@ -269,8 +384,15 @@ private struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("autoSent for LINE")
                 .font(.title.bold())
-            Text("ส่งข้อความร่างในหน้าต่างแชต LINE แยก ด้วย Enter หนึ่งครั้งตามเวลา")
+            Text("ส่งข้อความร่างในห้อง LINE ด้วย Enter หนึ่งครั้งตามเวลา")
                 .foregroundStyle(.secondary)
+
+            Picker("รูปแบบหน้าต่าง LINE", selection: $scheduler.roomMode) {
+                ForEach(RoomMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .disabled(scheduler.phase != .idle)
 
             DatePicker(
                 "เวลาส่ง",
@@ -298,7 +420,7 @@ private struct ContentView: View {
                 Spacer()
             }
 
-            Text("เปิดห้อง LINE เป็นหน้าต่างแยกและร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยเวลาเกิน 15 วินาทีจะไม่ส่ง")
+            Text("เลือกหน้าต่างให้ตรงกับ LINE และร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยเวลาเกิน 15 วินาทีจะไม่ส่ง")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
