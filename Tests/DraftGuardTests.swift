@@ -63,6 +63,11 @@ struct DraftGuardTests {
             lineIsFrontmost: true,
             originalProcessIsRunning: true
         ))
+        let result = SendResult(outcome: .notPressed, reason: "เลยเวลาที่เลือก", date: deadline)
+        precondition(result.summary.contains("ยังไม่ได้กด Enter"))
+        precondition(try! JSONDecoder().decode(SendResult.self, from: JSONEncoder().encode(result)) == result)
+        precondition(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: deadline)
+            .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
         print("DraftGuard tests passed")
     }
 }

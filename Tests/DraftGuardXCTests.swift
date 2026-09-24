@@ -68,4 +68,12 @@ final class DraftGuardXCTests: XCTestCase {
         XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3 * 3_600), maximumLateness: tolerance))
         XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: .nan))
     }
+
+    func testResultDistinguishesNoKeyPressFromPostedKeyPress() throws {
+        let result = SendResult(outcome: .notPressed, reason: "เลยเวลาที่เลือก", date: Date(timeIntervalSince1970: 1_000))
+        XCTAssertTrue(result.summary.contains("ยังไม่ได้กด Enter"))
+        XCTAssertEqual(try JSONDecoder().decode(SendResult.self, from: JSONEncoder().encode(result)), result)
+        XCTAssertTrue(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: result.date)
+            .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
+    }
 }

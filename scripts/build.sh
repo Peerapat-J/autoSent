@@ -11,6 +11,7 @@ CLANG_MODULE_CACHE_PATH="$cache_dir/module-cache" swiftc -O -parse-as-library \
     -target arm64-apple-macosx13.0 \
     "$project_dir/Sources/AutoSent/AutoSent.swift" \
     "$project_dir/Sources/AutoSent/DraftGuard.swift" \
+    "$project_dir/Sources/AutoSent/SendResult.swift" \
     -o "$cache_dir/autoSent"
 
 cp "$cache_dir/autoSent" "$app_dir/Contents/MacOS/autoSent"
