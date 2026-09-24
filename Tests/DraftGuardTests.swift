@@ -45,12 +45,14 @@ struct DraftGuardTests {
         ))
 
         let deadline = Date(timeIntervalSince1970: 1_000)
-        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1)))
-        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline))
-        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(14)))
-        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15)))
-        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(16)))
-        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_600)))
+        let tolerance: TimeInterval = 15 * 60
+        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1), maximumLateness: tolerance))
+        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: tolerance))
+        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(14 * 60), maximumLateness: tolerance))
+        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15 * 60), maximumLateness: tolerance))
+        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15 * 60 + 1), maximumLateness: tolerance))
+        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3 * 3_600), maximumLateness: tolerance))
+        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: -.infinity))
         precondition(!DraftGuard.allowsSend(
             expectedDraft: "  \n",
             currentDraft: "  \n",

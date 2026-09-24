@@ -60,10 +60,12 @@ final class DraftGuardXCTests: XCTestCase {
 
     func testDeadlineRejectsLateWake() {
         let deadline = Date(timeIntervalSince1970: 1_000)
-        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1)))
-        XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline))
-        XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15)))
-        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(16)))
-        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_600)))
+        let tolerance: TimeInterval = 15 * 60
+        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(-1), maximumLateness: tolerance))
+        XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: tolerance))
+        XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15 * 60), maximumLateness: tolerance))
+        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15 * 60 + 1), maximumLateness: tolerance))
+        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3 * 3_600), maximumLateness: tolerance))
+        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: .nan))
     }
 }

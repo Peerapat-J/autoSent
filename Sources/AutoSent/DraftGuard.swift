@@ -1,15 +1,18 @@
 import Foundation
 
 enum DraftGuard {
-    static let maximumLateness: TimeInterval = 15
-
     static func isBindableRoomTitle(_ title: String?) -> Bool {
         guard let title else { return false }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmed.isEmpty && trimmed.caseInsensitiveCompare("LINE") != .orderedSame
     }
 
-    static func isDueAndFresh(scheduledDate: Date, now: Date) -> Bool {
+    static func isDueAndFresh(
+        scheduledDate: Date,
+        now: Date,
+        maximumLateness: TimeInterval
+    ) -> Bool {
+        guard maximumLateness.isFinite, maximumLateness >= 0 else { return false }
         let lateness = now.timeIntervalSince(scheduledDate)
         return lateness >= 0 && lateness <= maximumLateness
     }

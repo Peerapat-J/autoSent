@@ -37,10 +37,12 @@ private final class Scheduler: ObservableObject {
     ) ?? Date.now.addingTimeInterval(60 * 60)
     @Published var phase: Phase = .idle
     @Published var roomMode: RoomMode = .main
+    @Published var allowedLatenessMinutes = 15
     @Published var status = "พิมพ์ข้อความร่างในห้อง LINE ที่ต้องการ แล้วตั้งเวลาส่ง"
     @Published var remaining = ""
 
     private var scheduledDate: Date?
+    private var maximumLateness: TimeInterval?
     private var snapshot: DraftSnapshot?
     private var captureTimer: Timer?
     private var clockTimer: Timer?
@@ -52,6 +54,10 @@ private final class Scheduler: ObservableObject {
         let selectedMinute = Calendar.current.dateInterval(of: .minute, for: sendDate)?.start ?? sendDate
         guard selectedMinute > .now else {
             status = "กรุณาเลือกเวลาในอนาคต"
+            return
+        }
+        guard (1...240).contains(allowedLatenessMinutes) else {
+            status = "กรุณาเลือกช่วงส่งช้าระหว่าง 1 ถึง 240 นาที"
             return
         }
 
@@ -75,6 +81,7 @@ private final class Scheduler: ObservableObject {
 
         displayAssertion = assertion
         scheduledDate = selectedMinute
+        maximumLateness = TimeInterval(allowedLatenessMinutes * 60)
         phase = .capturing
         status = "ภายใน 5 วินาที กลับไป LINE แล้วคลิกช่องพิมพ์ที่มีข้อความร่าง"
 
@@ -165,12 +172,14 @@ private final class Scheduler: ObservableObject {
     }
 
     private func tick() {
-        guard phase == .armed, let scheduledDate else { return }
+        guard phase == .armed, let scheduledDate, let maximumLateness else { return }
         let now = Date.now
-        if DraftGuard.isDueAndFresh(scheduledDate: scheduledDate, now: now) {
+        if DraftGuard.isDueAndFresh(
+            scheduledDate: scheduledDate, now: now, maximumLateness: maximumLateness
+        ) {
             sendOnce()
         } else if now > scheduledDate {
-            finish("ไม่ได้ส่ง: เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน 15 วินาที")
+            finish("ไม่ได้ส่ง: เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน \(Int(maximumLateness / 60)) นาที")
         } else {
             updateRemaining()
         }
@@ -272,9 +281,11 @@ private final class Scheduler: ObservableObject {
             return
         }
 
-        guard let scheduledDate,
-              DraftGuard.isDueAndFresh(scheduledDate: scheduledDate, now: .now) else {
-            finish("ไม่ได้ส่ง: เลยเวลาที่ตั้งไว้เกิน 15 วินาทีก่อนกด Enter")
+        guard let scheduledDate, let maximumLateness,
+              DraftGuard.isDueAndFresh(
+                scheduledDate: scheduledDate, now: .now, maximumLateness: maximumLateness
+              ) else {
+            finish("ไม่ได้ส่ง: เลยเวลาที่ตั้งไว้เกินช่วงส่งช้าที่เลือกก่อนกด Enter")
             return
         }
 
@@ -291,6 +302,7 @@ private final class Scheduler: ObservableObject {
         clockTimer = nil
         snapshot = nil
         scheduledDate = nil
+        maximumLateness = nil
         remaining = ""
         phase = .idle
         if let displayAssertion {
@@ -401,6 +413,13 @@ private struct ContentView: View {
             )
             .disabled(scheduler.phase != .idle)
 
+            Stepper(
+                "ยอมให้ส่งช้าได้สูงสุด \(scheduler.allowedLatenessMinutes) นาที",
+                value: $scheduler.allowedLatenessMinutes,
+                in: 1...240
+            )
+            .disabled(scheduler.phase != .idle)
+
             if scheduler.phase == .armed {
                 Text("เหลือเวลา \(scheduler.remaining)")
                     .font(.system(.title2, design: .monospaced).weight(.semibold))
@@ -420,7 +439,7 @@ private struct ContentView: View {
                 Spacer()
             }
 
-            Text("เลือกหน้าต่างให้ตรงกับ LINE และร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยเวลาเกิน 15 วินาทีจะไม่ส่ง")
+            Text("เลือกหน้าต่างให้ตรงกับ LINE และร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยช่วงส่งช้าที่เลือกจะไม่ส่ง")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
