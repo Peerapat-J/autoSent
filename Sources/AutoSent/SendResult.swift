@@ -28,3 +28,21 @@ enum PendingStage: String {
     case waiting
     case postingEnter
 }
+
+enum FailureAlertMode: String, CaseIterable, Identifiable {
+    case notification
+    case alarm
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .notification: return "แจ้งเตือนปกติ"
+        case .alarm: return "เสียงปลุกจนกดรับทราบ"
+        }
+    }
+
+    func requiresAlarm(for outcome: SendOutcome) -> Bool {
+        self == .alarm && (outcome == .notPressed || outcome == .uncertain)
+    }
+}

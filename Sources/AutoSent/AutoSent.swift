@@ -29,6 +29,7 @@ private struct DraftSnapshot {
 private final class Scheduler: ObservableObject {
     private static let lastResultKey = "autoSent.lastResult"
     private static let pendingStageKey = "autoSent.pendingStage"
+    private static let pendingAlertModeKey = "autoSent.pendingAlertMode"
 
     enum Phase {
         case idle, capturing, armed, sending
@@ -42,6 +43,7 @@ private final class Scheduler: ObservableObject {
     @Published var phase: Phase = .idle
     @Published var roomMode: RoomMode = .main
     @Published var allowedLatenessMinutes = 15
+    @Published var failureAlertMode: FailureAlertMode = .notification
     @Published var status = "พิมพ์ข้อความร่างในห้อง LINE ที่ต้องการ แล้วตั้งเวลาส่ง"
     @Published var remaining = ""
     @Published private(set) var lastResult: SendResult?
@@ -52,6 +54,8 @@ private final class Scheduler: ObservableObject {
     private var captureTimer: Timer?
     private var clockTimer: Timer?
     private var displayAssertion: IOPMAssertionID?
+    private var activeAlertMode: FailureAlertMode?
+    private var alarmSound: NSSound?
 
     init() {
         let defaults = UserDefaults.standard
@@ -67,6 +71,12 @@ private final class Scheduler: ObservableObject {
             lastResult = result
             defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
             defaults.removeObject(forKey: Self.pendingStageKey)
+            let previousAlertMode = defaults.string(forKey: Self.pendingAlertModeKey)
+                .flatMap(FailureAlertMode.init(rawValue:)) ?? .notification
+            defaults.removeObject(forKey: Self.pendingAlertModeKey)
+            if previousAlertMode.requiresAlarm(for: outcome) {
+                DispatchQueue.main.async { [weak self] in self?.presentAlarm(for: result) }
+            }
         }
     }
 
@@ -106,6 +116,8 @@ private final class Scheduler: ObservableObject {
         displayAssertion = assertion
         scheduledDate = selectedMinute
         maximumLateness = TimeInterval(allowedLatenessMinutes * 60)
+        activeAlertMode = failureAlertMode
+        UserDefaults.standard.set(failureAlertMode.rawValue, forKey: Self.pendingAlertModeKey)
         phase = .capturing
         markPending(.waiting)
         status = "ภายใน 5 วินาที กลับไป LINE แล้วคลิกช่องพิมพ์ที่มีข้อความร่าง"
@@ -335,6 +347,7 @@ private final class Scheduler: ObservableObject {
     }
 
     private func finish(_ reason: String, outcome: SendOutcome = .notPressed) {
+        let shouldAlarm = activeAlertMode?.requiresAlarm(for: outcome) == true
         captureTimer?.invalidate()
         clockTimer?.invalidate()
         captureTimer = nil
@@ -342,18 +355,17 @@ private final class Scheduler: ObservableObject {
         snapshot = nil
         scheduledDate = nil
         maximumLateness = nil
+        activeAlertMode = nil
         remaining = ""
         phase = .idle
-        if let displayAssertion {
-            IOPMAssertionRelease(displayAssertion)
-            self.displayAssertion = nil
-        }
+        if !shouldAlarm { releaseDisplayAssertion() }
         let result = SendResult(outcome: outcome, reason: reason, date: .now)
         lastResult = result
         status = "พร้อมตั้งเวลางานใหม่"
         let defaults = UserDefaults.standard
         defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
         defaults.removeObject(forKey: Self.pendingStageKey)
+        defaults.removeObject(forKey: Self.pendingAlertModeKey)
         let content = UNMutableNotificationContent()
         content.title = outcome.title
         content.body = reason
@@ -361,6 +373,58 @@ private final class Scheduler: ObservableObject {
         UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         )
+        if shouldAlarm { presentAlarm(for: result) }
+    }
+
+    private func releaseDisplayAssertion() {
+        if let displayAssertion {
+            IOPMAssertionRelease(displayAssertion)
+            self.displayAssertion = nil
+        }
+    }
+
+    private func presentAlarm(for result: SendResult) {
+        if displayAssertion == nil {
+            var assertion = IOPMAssertionID(0)
+            if IOPMAssertionCreateWithName(
+                kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+                IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                "autoSent is waiting for alarm acknowledgment" as CFString,
+                &assertion
+            ) == kIOReturnSuccess {
+                displayAssertion = assertion
+            }
+        }
+        let sound = NSSound(contentsOfFile: "/System/Library/Sounds/Sosumi.aiff", byReference: false)
+            ?? NSSound(named: NSSound.Name("Sosumi"))
+        sound?.loops = true
+        alarmSound = sound
+        var fallbackBeepTimer: Timer?
+        if sound?.play() != true {
+            NSSound.beep()
+            let timer = Timer(timeInterval: 1.5, repeats: true) { _ in NSSound.beep() }
+            fallbackBeepTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
+        }
+
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = result.outcome == .uncertain
+            ? "ตรวจ LINE ตอนนี้: สถานะการกด Enter ไม่แน่ชัด"
+            : "ตื่นมาตรวจ LINE: autoSent ยังไม่ได้กด Enter"
+        alert.informativeText = "\(result.reason)\n\nตรวจห้องและข้อความใน LINE ก่อนส่งเอง เพื่อป้องกันการส่งซ้ำ"
+        alert.addButton(withTitle: "รับทราบและปิดเสียงปลุก")
+        alert.runModal()
+
+        fallbackBeepTimer?.invalidate()
+        sound?.stop()
+        alarmSound = nil
+        releaseDisplayAssertion()
     }
 
     private func readElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
@@ -469,6 +533,13 @@ private struct ContentView: View {
                 value: $scheduler.allowedLatenessMinutes,
                 in: 1...240
             )
+            .disabled(scheduler.phase != .idle)
+
+            Picker("ถ้ากด Enter ไม่ได้", selection: $scheduler.failureAlertMode) {
+                ForEach(FailureAlertMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
             .disabled(scheduler.phase != .idle)
 
             if scheduler.phase == .armed {

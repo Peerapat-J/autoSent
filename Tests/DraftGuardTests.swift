@@ -68,6 +68,11 @@ struct DraftGuardTests {
         precondition(try! JSONDecoder().decode(SendResult.self, from: JSONEncoder().encode(result)) == result)
         precondition(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: deadline)
             .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
+        precondition(FailureAlertMode.alarm.requiresAlarm(for: .notPressed))
+        precondition(FailureAlertMode.alarm.requiresAlarm(for: .uncertain))
+        precondition(!FailureAlertMode.alarm.requiresAlarm(for: .cancelled))
+        precondition(!FailureAlertMode.alarm.requiresAlarm(for: .enterPosted))
+        precondition(!FailureAlertMode.notification.requiresAlarm(for: .notPressed))
         print("DraftGuard tests passed")
     }
 }

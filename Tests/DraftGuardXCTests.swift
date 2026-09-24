@@ -76,4 +76,12 @@ final class DraftGuardXCTests: XCTestCase {
         XCTAssertTrue(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: result.date)
             .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
     }
+
+    func testAlarmOnlyRunsWhenKeyPressNeedsUserAttention() {
+        XCTAssertTrue(FailureAlertMode.alarm.requiresAlarm(for: .notPressed))
+        XCTAssertTrue(FailureAlertMode.alarm.requiresAlarm(for: .uncertain))
+        XCTAssertFalse(FailureAlertMode.alarm.requiresAlarm(for: .cancelled))
+        XCTAssertFalse(FailureAlertMode.alarm.requiresAlarm(for: .enterPosted))
+        XCTAssertFalse(FailureAlertMode.notification.requiresAlarm(for: .notPressed))
+    }
 }
