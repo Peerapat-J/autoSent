@@ -42,20 +42,30 @@ private final class Scheduler: ObservableObject {
     ) ?? Date.now.addingTimeInterval(60 * 60)
     @Published var phase: Phase = .idle
     @Published var roomMode: RoomMode = .main
-    @Published var allowedLatenessMinutes = 15
+    @Published var latenessHours = "0"
+    @Published var latenessMinutes = "15"
+    @Published var latenessSeconds = "0"
     @Published var failureAlertMode: FailureAlertMode = .notification
     @Published var status = "พิมพ์ข้อความร่างในห้อง LINE ที่ต้องการ แล้วตั้งเวลาส่ง"
     @Published var remaining = ""
     @Published private(set) var lastResult: SendResult?
 
     private var scheduledDate: Date?
-    private var maximumLateness: TimeInterval?
+    private var maximumLateness: LatenessDuration?
     private var snapshot: DraftSnapshot?
     private var captureTimer: Timer?
     private var clockTimer: Timer?
     private var displayAssertion: IOPMAssertionID?
     private var activeAlertMode: FailureAlertMode?
     private var alarmSound: NSSound?
+
+    var enteredLateness: LatenessDuration? {
+        LatenessDuration(
+            hoursText: latenessHours,
+            minutesText: latenessMinutes,
+            secondsText: latenessSeconds
+        )
+    }
 
     init() {
         let defaults = UserDefaults.standard
@@ -88,8 +98,8 @@ private final class Scheduler: ObservableObject {
             finish("เวลาที่เลือกผ่านไปแล้ว กรุณาเลือกเวลาในอนาคต")
             return
         }
-        guard (1...240).contains(allowedLatenessMinutes) else {
-            finish("ช่วงส่งช้าต้องอยู่ระหว่าง 1 ถึง 240 นาที")
+        guard let selectedLateness = enteredLateness else {
+            finish("ช่วงส่งช้าต้องเป็นตัวเลข: ชั่วโมง 0–4 นาทีและวินาที 0–59 รวมอย่างน้อย 1 วินาทีและไม่เกิน 4 ชั่วโมง")
             return
         }
 
@@ -115,7 +125,7 @@ private final class Scheduler: ObservableObject {
 
         displayAssertion = assertion
         scheduledDate = selectedMinute
-        maximumLateness = TimeInterval(allowedLatenessMinutes * 60)
+        maximumLateness = selectedLateness
         activeAlertMode = failureAlertMode
         UserDefaults.standard.set(failureAlertMode.rawValue, forKey: Self.pendingAlertModeKey)
         phase = .capturing
@@ -216,11 +226,11 @@ private final class Scheduler: ObservableObject {
         }
         let now = Date.now
         if DraftGuard.isDueAndFresh(
-            scheduledDate: scheduledDate, now: now, maximumLateness: maximumLateness
+            scheduledDate: scheduledDate, now: now, maximumLateness: maximumLateness.totalSeconds
         ) {
             sendOnce()
         } else if now > scheduledDate {
-            finish("เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน \(Int(maximumLateness / 60)) นาที")
+            finish("เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน \(maximumLateness.displayText)")
         } else {
             updateRemaining()
         }
@@ -328,7 +338,7 @@ private final class Scheduler: ObservableObject {
 
         guard let scheduledDate, let maximumLateness,
               DraftGuard.isDueAndFresh(
-                scheduledDate: scheduledDate, now: .now, maximumLateness: maximumLateness
+                scheduledDate: scheduledDate, now: .now, maximumLateness: maximumLateness.totalSeconds
               ) else {
             finish("เลยเวลาที่ตั้งไว้เกินช่วงส่งช้าที่เลือกก่อนกด Enter")
             return
@@ -507,6 +517,17 @@ private final class Scheduler: ObservableObject {
 private struct ContentView: View {
     @ObservedObject var scheduler: Scheduler
 
+    private func durationField(_ unit: String, accessibilityLabel: String, text: Binding<String>) -> some View {
+        HStack(spacing: 5) {
+            TextField("0", text: text)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 54)
+                .accessibilityLabel(accessibilityLabel)
+            Text(unit)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("autoSent for LINE")
@@ -528,11 +549,19 @@ private struct ContentView: View {
             )
             .disabled(scheduler.phase != .idle)
 
-            Stepper(
-                "ยอมให้ส่งช้าได้สูงสุด \(scheduler.allowedLatenessMinutes) นาที",
-                value: $scheduler.allowedLatenessMinutes,
-                in: 1...240
-            )
+            VStack(alignment: .leading, spacing: 7) {
+                Text("ยอมให้ส่งช้าได้สูงสุด")
+                HStack(spacing: 14) {
+                    durationField("ชม.", accessibilityLabel: "ชั่วโมง", text: $scheduler.latenessHours)
+                    durationField("นาที", accessibilityLabel: "นาที", text: $scheduler.latenessMinutes)
+                    durationField("วิ", accessibilityLabel: "วินาที", text: $scheduler.latenessSeconds)
+                }
+                if scheduler.enteredLateness == nil {
+                    Text("ใส่ตัวเลข 0–4 ชม., 0–59 นาที, 0–59 วิ; รวม 1 วินาทีถึง 4 ชั่วโมง")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
             .disabled(scheduler.phase != .idle)
 
             Picker("ถ้ากด Enter ไม่ได้", selection: $scheduler.failureAlertMode) {

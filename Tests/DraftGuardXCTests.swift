@@ -69,6 +69,20 @@ final class DraftGuardXCTests: XCTestCase {
         XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: .nan))
     }
 
+    func testEditableHoursMinutesSecondsHaveExactBoundary() throws {
+        let duration = try XCTUnwrap(LatenessDuration(hoursText: "1", minutesText: "3", secondsText: "7"))
+        XCTAssertEqual(duration.totalSeconds, 3_787)
+        XCTAssertEqual(duration.displayText, "1 ชม. 3 นาที 7 วิ")
+        let deadline = Date(timeIntervalSince1970: 1_000)
+        XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_787), maximumLateness: duration.totalSeconds))
+        XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_788), maximumLateness: duration.totalSeconds))
+        XCTAssertNil(LatenessDuration(hoursText: "0", minutesText: "0", secondsText: "0"))
+        XCTAssertNil(LatenessDuration(hoursText: "0", minutesText: "60", secondsText: "0"))
+        XCTAssertNil(LatenessDuration(hoursText: "4", minutesText: "0", secondsText: "1"))
+        XCTAssertNil(LatenessDuration(hoursText: "oops", minutesText: "1", secondsText: "0"))
+        XCTAssertEqual(LatenessDuration(hoursText: "4", minutesText: "0", secondsText: "0")?.totalSeconds, 14_400)
+    }
+
     func testResultDistinguishesNoKeyPressFromPostedKeyPress() throws {
         let result = SendResult(outcome: .notPressed, reason: "เลยเวลาที่เลือก", date: Date(timeIntervalSince1970: 1_000))
         XCTAssertTrue(result.summary.contains("ยังไม่ได้กด Enter"))

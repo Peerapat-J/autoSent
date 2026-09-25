@@ -53,6 +53,15 @@ struct DraftGuardTests {
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(15 * 60 + 1), maximumLateness: tolerance))
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3 * 3_600), maximumLateness: tolerance))
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: -.infinity))
+        let hourMinuteSecond = LatenessDuration(hoursText: "1", minutesText: "3", secondsText: "7")!
+        precondition(hourMinuteSecond.totalSeconds == 3_787)
+        precondition(hourMinuteSecond.displayText == "1 ชม. 3 นาที 7 วิ")
+        precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_787), maximumLateness: hourMinuteSecond.totalSeconds))
+        precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_788), maximumLateness: hourMinuteSecond.totalSeconds))
+        precondition(LatenessDuration(hoursText: "0", minutesText: "0", secondsText: "0") == nil)
+        precondition(LatenessDuration(hoursText: "0", minutesText: "60", secondsText: "0") == nil)
+        precondition(LatenessDuration(hoursText: "4", minutesText: "0", secondsText: "1") == nil)
+        precondition(LatenessDuration(hoursText: "4", minutesText: "0", secondsText: "0")?.totalSeconds == 14_400)
         precondition(!DraftGuard.allowsSend(
             expectedDraft: "  \n",
             currentDraft: "  \n",

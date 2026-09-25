@@ -1,5 +1,33 @@
 import Foundation
 
+struct LatenessDuration: Equatable {
+    let hours: Int
+    let minutes: Int
+    let seconds: Int
+
+    init?(hoursText: String, minutesText: String, secondsText: String) {
+        func number(_ text: String) -> Int? {
+            let digits = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !digits.isEmpty,
+                  digits.utf8.allSatisfy({ (48...57).contains($0) }) else { return nil }
+            return Int(digits)
+        }
+
+        guard let hours = number(hoursText), (0...4).contains(hours),
+              let minutes = number(minutesText), (0...59).contains(minutes),
+              let seconds = number(secondsText), (0...59).contains(seconds),
+              (1...14_400).contains(hours * 3_600 + minutes * 60 + seconds) else {
+            return nil
+        }
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
+    }
+
+    var totalSeconds: TimeInterval { TimeInterval(hours * 3_600 + minutes * 60 + seconds) }
+    var displayText: String { "\(hours) ชม. \(minutes) นาที \(seconds) วิ" }
+}
+
 enum DraftGuard {
     static func isBindableRoomTitle(_ title: String?) -> Bool {
         guard let title else { return false }
