@@ -2,6 +2,20 @@ import Foundation
 import XCTest
 
 final class DraftGuardXCTests: XCTestCase {
+    func testSeparateDayAndTimeKeepTheOtherPart() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let original = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 9, minute: 15)))
+        let otherDay = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 3, hour: 18, minute: 45)))
+        let changedDay = try XCTUnwrap(ScheduleDate.replacingDay(in: original, with: otherDay, calendar: calendar))
+        XCTAssertEqual(calendar.dateComponents([.year, .month, .day, .hour, .minute], from: changedDay),
+                       DateComponents(year: 2026, month: 10, day: 3, hour: 9, minute: 15))
+
+        let changedTime = try XCTUnwrap(ScheduleDate.replacingTime(in: original, with: otherDay, calendar: calendar))
+        XCTAssertEqual(calendar.dateComponents([.year, .month, .day, .hour, .minute], from: changedTime),
+                       DateComponents(year: 2026, month: 9, day: 25, hour: 18, minute: 45))
+    }
+
     private func allowsSend(
         draft: String? = "งานตอนเช้า",
         sameComposer: Bool = true,

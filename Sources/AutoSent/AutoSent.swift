@@ -517,6 +517,26 @@ private final class Scheduler: ObservableObject {
 private struct ContentView: View {
     @ObservedObject var scheduler: Scheduler
 
+    private var sendDay: Binding<Date> {
+        Binding(
+            get: { scheduler.sendDate },
+            set: { selected in
+                scheduler.sendDate = ScheduleDate.replacingDay(in: scheduler.sendDate, with: selected)
+                    ?? scheduler.sendDate
+            }
+        )
+    }
+
+    private var sendTime: Binding<Date> {
+        Binding(
+            get: { scheduler.sendDate },
+            set: { selected in
+                scheduler.sendDate = ScheduleDate.replacingTime(in: scheduler.sendDate, with: selected)
+                    ?? scheduler.sendDate
+            }
+        )
+    }
+
     private func durationField(_ unit: String, accessibilityLabel: String, text: Binding<String>) -> some View {
         HStack(spacing: 5) {
             TextField("0", text: text)
@@ -542,11 +562,14 @@ private struct ContentView: View {
             }
             .disabled(scheduler.phase != .idle)
 
-            DatePicker(
-                "เวลาส่ง",
-                selection: $scheduler.sendDate,
-                displayedComponents: [.date, .hourAndMinute]
-            )
+            HStack(spacing: 10) {
+                Text("วันส่ง")
+                DatePicker("วันส่ง", selection: sendDay, displayedComponents: .date)
+                    .labelsHidden()
+                Text("ตั้งเวลา")
+                DatePicker("ตั้งเวลา", selection: sendTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+            }
             .disabled(scheduler.phase != .idle)
 
             VStack(alignment: .leading, spacing: 7) {

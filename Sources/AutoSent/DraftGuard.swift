@@ -1,5 +1,23 @@
 import Foundation
 
+enum ScheduleDate {
+    static func replacingDay(in original: Date, with selected: Date, calendar: Calendar = .current) -> Date? {
+        var components = calendar.dateComponents([.year, .month, .day], from: selected)
+        let time = calendar.dateComponents([.hour, .minute], from: original)
+        components.hour = time.hour
+        components.minute = time.minute
+        return calendar.date(from: components)
+    }
+
+    static func replacingTime(in original: Date, with selected: Date, calendar: Calendar = .current) -> Date? {
+        var components = calendar.dateComponents([.year, .month, .day], from: original)
+        let time = calendar.dateComponents([.hour, .minute], from: selected)
+        components.hour = time.hour
+        components.minute = time.minute
+        return calendar.date(from: components)
+    }
+}
+
 struct LatenessDuration: Equatable {
     let hours: Int
     let minutes: Int
