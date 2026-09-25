@@ -27,10 +27,6 @@ private struct DraftSnapshot {
 
 @MainActor
 private final class Scheduler: ObservableObject {
-    private static let lastResultKey = "autoSent.lastResult"
-    private static let pendingStageKey = "autoSent.pendingStage"
-    private static let pendingAlertModeKey = "autoSent.pendingAlertMode"
-
     enum Phase {
         case idle, capturing, armed, sending
     }
@@ -69,22 +65,25 @@ private final class Scheduler: ObservableObject {
 
     init() {
         let defaults = UserDefaults.standard
-        if let data = defaults.data(forKey: Self.lastResultKey) {
-            lastResult = try? JSONDecoder().decode(SendResult.self, from: data)
+        lastResult = AlarmJournal.lastResult(in: defaults)
+        if let unacknowledged = AlarmJournal.unacknowledgedResult(in: defaults) {
+            lastResult = unacknowledged
+            AlarmJournal.clearPending(in: defaults)
+            DispatchQueue.main.async { [weak self] in self?.presentAlarm(for: unacknowledged) }
+            return
         }
-        if let pending = defaults.string(forKey: Self.pendingStageKey) {
+        if let pending = defaults.string(forKey: AlarmJournal.pendingStageKey) {
             let outcome: SendOutcome = pending == PendingStage.waiting.rawValue ? .notPressed : .uncertain
             let reason = outcome == .notPressed
                 ? "The app stopped or the Mac restarted before Enter was pressed. The scheduled send will not resume."
                 : "The app stopped while pressing Enter. Check LINE before sending manually to avoid a duplicate."
             let result = SendResult(outcome: outcome, reason: reason, date: .now)
             lastResult = result
-            defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
-            defaults.removeObject(forKey: Self.pendingStageKey)
-            let previousAlertMode = defaults.string(forKey: Self.pendingAlertModeKey)
+            let previousAlertMode = defaults.string(forKey: AlarmJournal.pendingAlertModeKey)
                 .flatMap(FailureAlertMode.init(rawValue:)) ?? .notification
-            defaults.removeObject(forKey: Self.pendingAlertModeKey)
-            if previousAlertMode.requiresAlarm(for: outcome) {
+            let needsAlarm = previousAlertMode.requiresAlarm(for: outcome)
+            AlarmJournal.record(result, needsAlarm: needsAlarm, in: defaults)
+            if needsAlarm {
                 DispatchQueue.main.async { [weak self] in self?.presentAlarm(for: result) }
             }
         }
@@ -92,6 +91,10 @@ private final class Scheduler: ObservableObject {
 
     func prepare() {
         guard phase == .idle else { return }
+        guard AlarmJournal.unacknowledgedResult(in: .standard) == nil else {
+            status = "Acknowledge the previous alarm before scheduling another send."
+            return
+        }
 
         let selectedMinute = Calendar.current.dateInterval(of: .minute, for: sendDate)?.start ?? sendDate
         guard selectedMinute > .now else {
@@ -127,7 +130,7 @@ private final class Scheduler: ObservableObject {
         scheduledDate = selectedMinute
         maximumLateness = selectedLateness
         activeAlertMode = failureAlertMode
-        UserDefaults.standard.set(failureAlertMode.rawValue, forKey: Self.pendingAlertModeKey)
+        UserDefaults.standard.set(failureAlertMode.rawValue, forKey: AlarmJournal.pendingAlertModeKey)
         phase = .capturing
         markPending(.waiting)
         status = "Within 5 seconds, return to LINE and click the draft message field."
@@ -352,7 +355,7 @@ private final class Scheduler: ObservableObject {
     }
 
     private func markPending(_ stage: PendingStage) {
-        UserDefaults.standard.set(stage.rawValue, forKey: Self.pendingStageKey)
+        UserDefaults.standard.set(stage.rawValue, forKey: AlarmJournal.pendingStageKey)
         UserDefaults.standard.synchronize()
     }
 
@@ -373,9 +376,7 @@ private final class Scheduler: ObservableObject {
         lastResult = result
         status = "Ready to schedule another send."
         let defaults = UserDefaults.standard
-        defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
-        defaults.removeObject(forKey: Self.pendingStageKey)
-        defaults.removeObject(forKey: Self.pendingAlertModeKey)
+        AlarmJournal.record(result, needsAlarm: shouldAlarm, in: defaults)
         let content = UNMutableNotificationContent()
         content.title = outcome.title
         content.body = reason
@@ -429,12 +430,16 @@ private final class Scheduler: ObservableObject {
             : "Check LINE now: Enter was not pressed"
         alert.informativeText = "\(result.displayReason)\n\nCheck the room and draft in LINE before sending manually to avoid a duplicate."
         alert.addButton(withTitle: "Acknowledge and stop alarm")
-        alert.runModal()
-
+        let response = alert.runModal()
         fallbackBeepTimer?.invalidate()
         sound?.stop()
         alarmSound = nil
-        releaseDisplayAssertion()
+        if response == .alertFirstButtonReturn {
+            AlarmJournal.acknowledge(in: .standard)
+            releaseDisplayAssertion()
+        } else {
+            DispatchQueue.main.async { [weak self] in self?.presentAlarm(for: result) }
+        }
     }
 
     private func readElement(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {

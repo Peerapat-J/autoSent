@@ -121,4 +121,40 @@ final class DraftGuardXCTests: XCTestCase {
         XCTAssertFalse(FailureAlertMode.alarm.requiresAlarm(for: .enterPosted))
         XCTAssertFalse(FailureAlertMode.notification.requiresAlarm(for: .notPressed))
     }
+
+    func testUnacknowledgedAlarmSurvivesRestartUntilAcknowledged() throws {
+        let suite = "autoSent.alarm-journal.test.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(PendingStage.postingEnter.rawValue, forKey: AlarmJournal.pendingStageKey)
+        defaults.set(FailureAlertMode.alarm.rawValue, forKey: AlarmJournal.pendingAlertModeKey)
+
+        let uncertain = SendResult(
+            outcome: .uncertain,
+            reason: "The app stopped while pressing Enter. Check LINE before sending manually.",
+            date: Date(timeIntervalSince1970: 1_000)
+        )
+        AlarmJournal.record(uncertain, needsAlarm: true, in: defaults)
+        XCTAssertNil(defaults.string(forKey: AlarmJournal.pendingStageKey))
+        XCTAssertNil(defaults.string(forKey: AlarmJournal.pendingAlertModeKey))
+
+        let reopenedDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        XCTAssertEqual(AlarmJournal.unacknowledgedResult(in: reopenedDefaults), uncertain)
+        XCTAssertEqual(AlarmJournal.lastResult(in: reopenedDefaults), uncertain)
+
+        AlarmJournal.acknowledge(in: reopenedDefaults)
+        XCTAssertNil(AlarmJournal.unacknowledgedResult(in: defaults))
+        XCTAssertEqual(AlarmJournal.lastResult(in: defaults), uncertain)
+    }
+
+    func testStandardNotificationDoesNotPersistAlarm() throws {
+        let suite = "autoSent.alarm-journal.test.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let result = SendResult(outcome: .notPressed, reason: "The deadline was missed.", date: .now)
+        AlarmJournal.record(result, needsAlarm: false, in: defaults)
+        XCTAssertNil(AlarmJournal.unacknowledgedResult(in: defaults))
+        XCTAssertEqual(AlarmJournal.lastResult(in: defaults), result)
+    }
 }

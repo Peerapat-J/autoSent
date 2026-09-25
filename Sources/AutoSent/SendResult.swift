@@ -69,6 +69,48 @@ enum PendingStage: String {
     case postingEnter
 }
 
+enum AlarmJournal {
+    static let lastResultKey = "autoSent.lastResult"
+    static let pendingStageKey = "autoSent.pendingStage"
+    static let pendingAlertModeKey = "autoSent.pendingAlertMode"
+    private static let unacknowledgedAlarmKey = "autoSent.unacknowledgedAlarm"
+
+    static func lastResult(in defaults: UserDefaults) -> SendResult? {
+        decodeResult(forKey: lastResultKey, in: defaults)
+    }
+
+    static func unacknowledgedResult(in defaults: UserDefaults) -> SendResult? {
+        decodeResult(forKey: unacknowledgedAlarmKey, in: defaults)
+    }
+
+    static func record(_ result: SendResult, needsAlarm: Bool, in defaults: UserDefaults) {
+        guard let data = try? JSONEncoder().encode(result) else { return }
+        defaults.set(data, forKey: lastResultKey)
+        if needsAlarm {
+            defaults.set(data, forKey: unacknowledgedAlarmKey)
+        }
+        // Persist the alarm before removing the crash-recovery keys.
+        guard defaults.synchronize() else { return }
+        clearPending(in: defaults)
+    }
+
+    static func clearPending(in defaults: UserDefaults) {
+        defaults.removeObject(forKey: pendingStageKey)
+        defaults.removeObject(forKey: pendingAlertModeKey)
+        defaults.synchronize()
+    }
+
+    static func acknowledge(in defaults: UserDefaults) {
+        defaults.removeObject(forKey: unacknowledgedAlarmKey)
+        defaults.synchronize()
+    }
+
+    private static func decodeResult(forKey key: String, in defaults: UserDefaults) -> SendResult? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(SendResult.self, from: data)
+    }
+}
+
 enum FailureAlertMode: String, CaseIterable, Identifiable {
     case notification
     case alarm
