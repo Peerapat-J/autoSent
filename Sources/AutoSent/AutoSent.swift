@@ -8,8 +8,8 @@ import UserNotifications
 private let lineBundleID = "jp.naver.line.mac"
 
 private enum RoomMode: String, CaseIterable, Identifiable {
-    case main = "หน้าต่างหลัก"
-    case separate = "หน้าต่างแชตแยก"
+    case main = "Main window"
+    case separate = "Separate chat window"
 
     var id: Self { self }
 }
@@ -46,7 +46,7 @@ private final class Scheduler: ObservableObject {
     @Published var latenessMinutes = "15"
     @Published var latenessSeconds = "0"
     @Published var failureAlertMode: FailureAlertMode = .notification
-    @Published var status = "พิมพ์ข้อความร่างในห้อง LINE ที่ต้องการ แล้วตั้งเวลาส่ง"
+    @Published var status = "Type a draft in the LINE chat, then choose when to send it."
     @Published var remaining = ""
     @Published private(set) var lastResult: SendResult?
 
@@ -75,8 +75,8 @@ private final class Scheduler: ObservableObject {
         if let pending = defaults.string(forKey: Self.pendingStageKey) {
             let outcome: SendOutcome = pending == PendingStage.waiting.rawValue ? .notPressed : .uncertain
             let reason = outcome == .notPressed
-                ? "แอปหยุดทำงานหรือเครื่องเริ่มใหม่ก่อนกด Enter; งานเดิมไม่ทำงานต่อ"
-                : "แอปหยุดทำงานขณะโพสต์ปุ่ม Enter; กรุณาตรวจใน LINE ก่อนส่งเอง"
+                ? "The app stopped or the Mac restarted before Enter was pressed. The scheduled send will not resume."
+                : "The app stopped while pressing Enter. Check LINE before sending manually to avoid a duplicate."
             let result = SendResult(outcome: outcome, reason: reason, date: .now)
             lastResult = result
             defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
@@ -95,11 +95,11 @@ private final class Scheduler: ObservableObject {
 
         let selectedMinute = Calendar.current.dateInterval(of: .minute, for: sendDate)?.start ?? sendDate
         guard selectedMinute > .now else {
-            finish("เวลาที่เลือกผ่านไปแล้ว กรุณาเลือกเวลาในอนาคต")
+            finish("The selected time has passed. Choose a future time.")
             return
         }
         guard let selectedLateness = enteredLateness else {
-            finish("ช่วงส่งช้าต้องเป็นตัวเลข: ชั่วโมง 0–4 นาทีและวินาที 0–59 รวมอย่างน้อย 1 วินาทีและไม่เกิน 4 ชั่วโมง")
+            finish("Enter a valid lateness limit: 0–4 hours, 0–59 minutes, and 0–59 seconds; total 1 second to 4 hours.")
             return
         }
 
@@ -107,7 +107,7 @@ private final class Scheduler: ObservableObject {
 
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         guard AXIsProcessTrustedWithOptions(options) else {
-            finish("ยังไม่ได้รับสิทธิ์ Accessibility; เปิดให้ autoSent ใน System Settings แล้วลองใหม่")
+            finish("Accessibility permission is missing. Allow autoSent in System Settings and try again.")
             return
         }
 
@@ -119,7 +119,7 @@ private final class Scheduler: ObservableObject {
             &assertion
         )
         guard result == kIOReturnSuccess else {
-            finish("กันหน้าจอดับไม่ได้ (IOKit error \(result)) จึงไม่เริ่มตั้งเวลา")
+            finish("Could not keep the display awake (IOKit error \(result)). Scheduling did not start.")
             return
         }
 
@@ -130,7 +130,7 @@ private final class Scheduler: ObservableObject {
         UserDefaults.standard.set(failureAlertMode.rawValue, forKey: Self.pendingAlertModeKey)
         phase = .capturing
         markPending(.waiting)
-        status = "ภายใน 5 วินาที กลับไป LINE แล้วคลิกช่องพิมพ์ที่มีข้อความร่าง"
+        status = "Within 5 seconds, return to LINE and click the draft message field."
 
         let timer = Timer(timeInterval: 5, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in self?.captureDraft() }
@@ -141,18 +141,18 @@ private final class Scheduler: ObservableObject {
 
     func cancel() {
         guard phase != .idle else { return }
-        finish("ผู้ใช้ยกเลิกงานก่อนกด Enter", outcome: .cancelled)
+        finish("You cancelled the scheduled send before Enter was pressed.", outcome: .cancelled)
     }
 
     private func captureDraft() {
         guard phase == .capturing else { return }
         guard let scheduledDate, scheduledDate > .now else {
-            finish("เวลาที่เลือกผ่านไปแล้วระหว่างเตรียมส่ง")
+            finish("The selected time passed while preparing the send.")
             return
         }
         guard let line = NSWorkspace.shared.frontmostApplication,
               line.bundleIdentifier == lineBundleID else {
-            finish("ตอนจับร่าง LINE ไม่ใช่แอปที่อยู่ด้านหน้า")
+            finish("LINE was not the frontmost app when capturing the draft.")
             return
         }
 
@@ -161,7 +161,7 @@ private final class Scheduler: ObservableObject {
               readString(composer, kAXRoleAttribute as String) == (kAXTextAreaRole as String),
               let draft = readString(composer, kAXValueAttribute as String),
               !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            finish("ไม่พบช่องพิมพ์ LINE ที่มีข้อความร่าง")
+            finish("Could not find a LINE message field containing a draft.")
             return
         }
 
@@ -169,7 +169,7 @@ private final class Scheduler: ObservableObject {
                 ?? readElement(composer, kAXTopLevelUIElementAttribute as String),
               let focusedWindow = readElement(lineAX, kAXFocusedWindowAttribute as String),
               CFEqual(roomWindow, focusedWindow) else {
-            finish("ระบุหน้าต่าง LINE ที่กำลังพิมพ์ไม่ได้")
+            finish("Could not identify the LINE window containing the draft.")
             return
         }
 
@@ -180,7 +180,7 @@ private final class Scheduler: ObservableObject {
         case .separate:
             guard let title = readString(roomWindow, kAXTitleAttribute as String),
                   DraftGuard.isBindableRoomTitle(title) else {
-                finish("หน้าต่างแชตแยกไม่แสดงชื่อห้องผ่าน Accessibility")
+                finish("The separate LINE chat window does not expose its room name through Accessibility.")
                 return
             }
             roomTitle = title
@@ -189,7 +189,7 @@ private final class Scheduler: ObservableObject {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .caseInsensitiveCompare("LINE") == .orderedSame,
                   let selected = selectedMainRoom(in: roomWindow) else {
-                finish("LINE ไม่เปิดเผยรายการห้องที่เลือกผ่าน Accessibility; ลองใช้หน้าต่างแชตแยก")
+                finish("LINE does not expose the selected room through Accessibility. Try a separate chat window.")
                 return
             }
             roomTitle = selected.name
@@ -208,7 +208,7 @@ private final class Scheduler: ObservableObject {
             text: draft
         )
         phase = .armed
-        status = "ตั้งเวลาแล้วสำหรับห้อง \(roomTitle) • หน้าจอไม่ดับจากการไม่ได้ใช้งาน"
+        status = "Scheduled for \(roomTitle) • The display will stay awake while waiting."
         updateRemaining()
 
         let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] _ in
@@ -221,7 +221,7 @@ private final class Scheduler: ObservableObject {
     private func tick() {
         guard phase == .armed else { return }
         guard let scheduledDate, let maximumLateness else {
-            finish("ข้อมูลงานที่ตั้งไว้ไม่ครบ")
+            finish("The scheduled send is missing required information.")
             return
         }
         let now = Date.now
@@ -230,7 +230,7 @@ private final class Scheduler: ObservableObject {
         ) {
             sendOnce()
         } else if now > scheduledDate {
-            finish("เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน \(maximumLateness.displayText)")
+            finish("The Mac woke or the app resumed more than \(maximumLateness.displayText) after the scheduled time.")
         } else {
             updateRemaining()
         }
@@ -251,13 +251,13 @@ private final class Scheduler: ObservableObject {
         // Stop the repeating timer before any asynchronous app activation.
         guard phase == .armed else { return }
         guard let snapshot else {
-            finish("ไม่พบข้อมูลห้องและข้อความร่างที่จับไว้")
+            finish("The captured room or draft is no longer available.")
             return
         }
         clockTimer?.invalidate()
         clockTimer = nil
         phase = .sending
-        status = "ถึงเวลาแล้ว • กำลังตรวจช่องข้อความ LINE"
+        status = "Scheduled time reached • Checking the LINE message field."
 
         Task { @MainActor [weak self] in
             await self?.activateVerifyAndSend(snapshot)
@@ -270,12 +270,12 @@ private final class Scheduler: ObservableObject {
               line.bundleIdentifier == lineBundleID,
               AXIsProcessTrusted(),
               line.activate(options: []) else {
-            finish("LINE ปิดไปแล้ว เปิดหน้าต่างไม่ได้ หรือสิทธิ์ Accessibility ถูกปิด")
+            finish("LINE is closed, its window could not be opened, or Accessibility permission was revoked.")
             return
         }
 
         guard AXUIElementPerformAction(snapshot.roomWindow, kAXRaiseAction as CFString) == .success else {
-            finish("หน้าต่างห้อง LINE ที่จับไว้ปิดไปแล้วหรือเปิดไม่ได้")
+            finish("The captured LINE chat window was closed or could not be opened.")
             return
         }
 
@@ -326,13 +326,13 @@ private final class Scheduler: ObservableObject {
             lineIsFrontmost: frontmost,
             originalProcessIsRunning: !line.isTerminated
         ) else {
-            finish("ห้อง LINE/ช่องพิมพ์เปลี่ยน ข้อความร่างถูกแก้ หรือ LINE ไม่อยู่ด้านหน้า")
+            finish("The LINE room or message field changed, the draft was edited, or LINE is not frontmost.")
             return
         }
 
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0x24, keyDown: true),
               let up = CGEvent(keyboardEventSource: nil, virtualKey: 0x24, keyDown: false) else {
-            finish("สร้างปุ่ม Enter ไม่สำเร็จ")
+            finish("Could not create the Enter key event.")
             return
         }
 
@@ -340,7 +340,7 @@ private final class Scheduler: ObservableObject {
               DraftGuard.isDueAndFresh(
                 scheduledDate: scheduledDate, now: .now, maximumLateness: maximumLateness.totalSeconds
               ) else {
-            finish("เลยเวลาที่ตั้งไว้เกินช่วงส่งช้าที่เลือกก่อนกด Enter")
+            finish("The selected lateness limit was exceeded before Enter could be pressed.")
             return
         }
 
@@ -348,7 +348,7 @@ private final class Scheduler: ObservableObject {
         markPending(.postingEnter)
         down.postToPid(snapshot.processID)
         up.postToPid(snapshot.processID)
-        finish("โพสต์ปุ่ม Enter หนึ่งครั้งไปยัง LINE; ยังยืนยันการส่งถึงผู้รับไม่ได้", outcome: .enterPosted)
+        finish("Pressed Enter once in LINE. Delivery to the recipient cannot be confirmed.", outcome: .enterPosted)
     }
 
     private func markPending(_ stage: PendingStage) {
@@ -371,7 +371,7 @@ private final class Scheduler: ObservableObject {
         if !shouldAlarm { releaseDisplayAssertion() }
         let result = SendResult(outcome: outcome, reason: reason, date: .now)
         lastResult = result
-        status = "พร้อมตั้งเวลางานใหม่"
+        status = "Ready to schedule another send."
         let defaults = UserDefaults.standard
         defaults.set(try? JSONEncoder().encode(result), forKey: Self.lastResultKey)
         defaults.removeObject(forKey: Self.pendingStageKey)
@@ -425,10 +425,10 @@ private final class Scheduler: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = result.outcome == .uncertain
-            ? "ตรวจ LINE ตอนนี้: สถานะการกด Enter ไม่แน่ชัด"
-            : "ตื่นมาตรวจ LINE: autoSent ยังไม่ได้กด Enter"
-        alert.informativeText = "\(result.reason)\n\nตรวจห้องและข้อความใน LINE ก่อนส่งเอง เพื่อป้องกันการส่งซ้ำ"
-        alert.addButton(withTitle: "รับทราบและปิดเสียงปลุก")
+            ? "Check LINE now: Enter status is uncertain"
+            : "Check LINE now: Enter was not pressed"
+        alert.informativeText = "\(result.displayReason)\n\nCheck the room and draft in LINE before sending manually to avoid a duplicate."
+        alert.addButton(withTitle: "Acknowledge and stop alarm")
         alert.runModal()
 
         fallbackBeepTimer?.invalidate()
@@ -552,10 +552,10 @@ private struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("autoSent for LINE")
                 .font(.title.bold())
-            Text("ส่งข้อความร่างในห้อง LINE ด้วย Enter หนึ่งครั้งตามเวลา")
+            Text("Send a LINE draft with one Enter key press at the scheduled time.")
                 .foregroundStyle(.secondary)
 
-            Picker("รูปแบบหน้าต่าง LINE", selection: $scheduler.roomMode) {
+            Picker("LINE window type", selection: $scheduler.roomMode) {
                 ForEach(RoomMode.allCases) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
@@ -563,31 +563,31 @@ private struct ContentView: View {
             .disabled(scheduler.phase != .idle)
 
             HStack(spacing: 10) {
-                Text("วันส่ง")
-                DatePicker("วันส่ง", selection: sendDay, displayedComponents: .date)
+                Text("Send date")
+                DatePicker("Send date", selection: sendDay, displayedComponents: .date)
                     .labelsHidden()
-                Text("ตั้งเวลา")
-                DatePicker("ตั้งเวลา", selection: sendTime, displayedComponents: .hourAndMinute)
+                Text("Time")
+                DatePicker("Send time", selection: sendTime, displayedComponents: .hourAndMinute)
                     .labelsHidden()
             }
             .disabled(scheduler.phase != .idle)
 
             VStack(alignment: .leading, spacing: 7) {
-                Text("ยอมให้ส่งช้าได้สูงสุด")
+                Text("Maximum lateness")
                 HStack(spacing: 14) {
-                    durationField("ชม.", accessibilityLabel: "ชั่วโมง", text: $scheduler.latenessHours)
-                    durationField("นาที", accessibilityLabel: "นาที", text: $scheduler.latenessMinutes)
-                    durationField("วิ", accessibilityLabel: "วินาที", text: $scheduler.latenessSeconds)
+                    durationField("hr", accessibilityLabel: "Hours", text: $scheduler.latenessHours)
+                    durationField("min", accessibilityLabel: "Minutes", text: $scheduler.latenessMinutes)
+                    durationField("sec", accessibilityLabel: "Seconds", text: $scheduler.latenessSeconds)
                 }
                 if scheduler.enteredLateness == nil {
-                    Text("ใส่ตัวเลข 0–4 ชม., 0–59 นาที, 0–59 วิ; รวม 1 วินาทีถึง 4 ชั่วโมง")
+                    Text("Enter 0–4 hr, 0–59 min, and 0–59 sec; total 1 second to 4 hours.")
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
             }
             .disabled(scheduler.phase != .idle)
 
-            Picker("ถ้ากด Enter ไม่ได้", selection: $scheduler.failureAlertMode) {
+            Picker("If Enter cannot be pressed", selection: $scheduler.failureAlertMode) {
                 ForEach(FailureAlertMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -595,7 +595,7 @@ private struct ContentView: View {
             .disabled(scheduler.phase != .idle)
 
             if scheduler.phase == .armed {
-                Text("เหลือเวลา \(scheduler.remaining)")
+                Text("Time remaining: \(scheduler.remaining)")
                     .font(.system(.title2, design: .monospaced).weight(.semibold))
             }
 
@@ -604,27 +604,27 @@ private struct ContentView: View {
 
             if let result = scheduler.lastResult {
                 Divider()
-                Text("ผลล่าสุด • \(result.date.formatted(date: .abbreviated, time: .shortened))")
+                Text("Last result • \(result.date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(Locale(identifier: "en_US"))))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(result.outcome.title)
                     .font(.headline)
-                Text(result.reason)
+                Text(result.displayReason)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
                 if scheduler.phase == .idle {
-                    Button("เตรียมส่ง") { scheduler.prepare() }
+                    Button("Schedule send") { scheduler.prepare() }
                         .buttonStyle(.borderedProminent)
                 } else {
-                    Button("ยกเลิก") { scheduler.cancel() }
+                    Button("Cancel") { scheduler.cancel() }
                         .disabled(scheduler.phase == .sending)
                 }
                 Spacer()
             }
 
-            Text("เลือกหน้าต่างให้ตรงกับ LINE และร่างข้อความไว้ก่อน • หลังตั้งเวลาอย่าเปลี่ยนห้องหรือแก้ร่าง • หากเลยช่วงส่งช้าที่เลือกจะไม่ส่ง")
+            Text("Match the LINE window and prepare the draft first • Do not change rooms or edit the draft after scheduling • Sends beyond the lateness limit are cancelled")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -640,6 +640,7 @@ private struct AutoSentApp: App {
     var body: some Scene {
         Window("autoSent", id: "main") {
             ContentView(scheduler: scheduler)
+                .environment(\.locale, Locale(identifier: "en_US"))
         }
         .windowResizability(.contentSize)
     }

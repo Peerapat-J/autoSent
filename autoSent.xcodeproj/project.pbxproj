@@ -90,7 +90,7 @@
 			};
 			buildConfigurationList = L00000000000000000000001 /* Build configuration list for PBXProject "autoSent" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = th;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (th, en, Base);
 			mainGroup = G00000000000000000000001;

@@ -86,7 +86,7 @@ final class DraftGuardXCTests: XCTestCase {
     func testEditableHoursMinutesSecondsHaveExactBoundary() throws {
         let duration = try XCTUnwrap(LatenessDuration(hoursText: "1", minutesText: "3", secondsText: "7"))
         XCTAssertEqual(duration.totalSeconds, 3_787)
-        XCTAssertEqual(duration.displayText, "1 ชม. 3 นาที 7 วิ")
+        XCTAssertEqual(duration.displayText, "1 hr 3 min 7 sec")
         let deadline = Date(timeIntervalSince1970: 1_000)
         XCTAssertTrue(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_787), maximumLateness: duration.totalSeconds))
         XCTAssertFalse(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_788), maximumLateness: duration.totalSeconds))
@@ -98,11 +98,20 @@ final class DraftGuardXCTests: XCTestCase {
     }
 
     func testResultDistinguishesNoKeyPressFromPostedKeyPress() throws {
-        let result = SendResult(outcome: .notPressed, reason: "เลยเวลาที่เลือก", date: Date(timeIntervalSince1970: 1_000))
-        XCTAssertTrue(result.summary.contains("ยังไม่ได้กด Enter"))
+        let result = SendResult(outcome: .notPressed, reason: "The selected time has passed.", date: Date(timeIntervalSince1970: 1_000))
+        XCTAssertTrue(result.summary.contains("Enter was not pressed"))
         XCTAssertEqual(try JSONDecoder().decode(SendResult.self, from: JSONEncoder().encode(result)), result)
-        XCTAssertTrue(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: result.date)
-            .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
+        XCTAssertTrue(SendResult(outcome: .enterPosted, reason: "Check LINE", date: result.date)
+            .summary.contains("Enter was pressed"))
+        let savedResult = SendResult(
+            outcome: .notPressed,
+            reason: "เครื่องตื่นหรือแอปทำงานช้ากว่าเวลาที่ตั้งไว้เกิน 0 ชม. 15 นาที 0 วิ",
+            date: result.date
+        )
+        XCTAssertEqual(
+            savedResult.displayReason,
+            "The Mac woke or the app resumed more than 0 hr 15 min 0 sec after the scheduled time."
+        )
     }
 
     func testAlarmOnlyRunsWhenKeyPressNeedsUserAttention() {

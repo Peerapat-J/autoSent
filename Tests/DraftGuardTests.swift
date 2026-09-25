@@ -55,7 +55,7 @@ struct DraftGuardTests {
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline, maximumLateness: -.infinity))
         let hourMinuteSecond = LatenessDuration(hoursText: "1", minutesText: "3", secondsText: "7")!
         precondition(hourMinuteSecond.totalSeconds == 3_787)
-        precondition(hourMinuteSecond.displayText == "1 ชม. 3 นาที 7 วิ")
+        precondition(hourMinuteSecond.displayText == "1 hr 3 min 7 sec")
         precondition(DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_787), maximumLateness: hourMinuteSecond.totalSeconds))
         precondition(!DraftGuard.isDueAndFresh(scheduledDate: deadline, now: deadline.addingTimeInterval(3_788), maximumLateness: hourMinuteSecond.totalSeconds))
         precondition(LatenessDuration(hoursText: "0", minutesText: "0", secondsText: "0") == nil)
@@ -72,11 +72,11 @@ struct DraftGuardTests {
             lineIsFrontmost: true,
             originalProcessIsRunning: true
         ))
-        let result = SendResult(outcome: .notPressed, reason: "เลยเวลาที่เลือก", date: deadline)
-        precondition(result.summary.contains("ยังไม่ได้กด Enter"))
+        let result = SendResult(outcome: .notPressed, reason: "The selected time has passed.", date: deadline)
+        precondition(result.summary.contains("Enter was not pressed"))
         precondition(try! JSONDecoder().decode(SendResult.self, from: JSONEncoder().encode(result)) == result)
-        precondition(SendResult(outcome: .enterPosted, reason: "ตรวจ LINE", date: deadline)
-            .summary.contains("โพสต์ปุ่ม Enter แล้ว"))
+        precondition(SendResult(outcome: .enterPosted, reason: "Check LINE", date: deadline)
+            .summary.contains("Enter was pressed"))
         precondition(FailureAlertMode.alarm.requiresAlarm(for: .notPressed))
         precondition(FailureAlertMode.alarm.requiresAlarm(for: .uncertain))
         precondition(!FailureAlertMode.alarm.requiresAlarm(for: .cancelled))

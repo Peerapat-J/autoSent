@@ -43,7 +43,7 @@ struct LatenessDuration: Equatable {
     }
 
     var totalSeconds: TimeInterval { TimeInterval(hours * 3_600 + minutes * 60 + seconds) }
-    var displayText: String { "\(hours) ชม. \(minutes) นาที \(seconds) วิ" }
+    var displayText: String { "\(hours) hr \(minutes) min \(seconds) sec" }
 }
 
 enum DraftGuard {
