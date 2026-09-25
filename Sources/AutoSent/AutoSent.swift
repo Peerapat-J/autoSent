@@ -550,8 +550,6 @@ private struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("autoSent for LINE")
-                .font(.title.bold())
             Text("Send a LINE draft with one Enter key press at the scheduled time.")
                 .foregroundStyle(.secondary)
 
@@ -642,6 +640,7 @@ private struct AutoSentApp: App {
             ContentView(scheduler: scheduler)
                 .environment(\.locale, Locale(identifier: "en_US"))
         }
+        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
     }
 }
