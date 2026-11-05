@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Resources/AppIcon.png" width="112" height="112" alt="ไอคอน autoSent">
+</p>
+
 # autoSent
 
 แอป macOS สำหรับตั้งเวลา **กด Return/Enter หนึ่งครั้ง** ในข้อความร่างที่พิมพ์ไว้แล้วใน LINE แอปไม่ได้บันทึกข้อความลงไฟล์ ข้อความร่างที่ตรวจจับจะอยู่ในหน่วยความจำขณะรอส่งเท่านั้น

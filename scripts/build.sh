@@ -4,7 +4,7 @@ set -euo pipefail
 project_dir="${0:A:h:h}"
 cache_dir="$project_dir/.build/cache"
 app_dir="$project_dir/build/autoSent.app"
-mkdir -p "$cache_dir/module-cache" "$app_dir/Contents/MacOS"
+mkdir -p "$cache_dir/module-cache" "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
 
 CLANG_MODULE_CACHE_PATH="$cache_dir/module-cache" swiftc -O -parse-as-library \
     -module-cache-path "$cache_dir/module-cache" \
@@ -16,5 +16,6 @@ CLANG_MODULE_CACHE_PATH="$cache_dir/module-cache" swiftc -O -parse-as-library \
 
 cp "$cache_dir/autoSent" "$app_dir/Contents/MacOS/autoSent"
 cp "$project_dir/Resources/Info.plist" "$app_dir/Contents/Info.plist"
+cp "$project_dir/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$app_dir"
 print "Built $app_dir"

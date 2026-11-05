@@ -12,6 +12,7 @@
 		B00000000000000000000004 /* DraftGuardXCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000004 /* DraftGuardXCTests.swift */; };
 		B00000000000000000000005 /* SendResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* SendResult.swift */; };
 		B00000000000000000000006 /* SendResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* SendResult.swift */; };
+		B00000000000000000000007 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000008 /* AppIcon.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		C00000000000000000000005 /* autoSent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = autoSent.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000006 /* autoSentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = autoSentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000007 /* SendResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendResult.swift; sourceTree = "<group>"; };
+		C00000000000000000000008 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,7 +50,7 @@
 		G00000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (G00000000000000000000003 /* AutoSent */); path = Sources; sourceTree = "<group>"; };
 		G00000000000000000000003 /* AutoSent */ = {isa = PBXGroup; children = (C00000000000000000000001 /* AutoSent.swift */, C00000000000000000000002 /* DraftGuard.swift */, C00000000000000000000007 /* SendResult.swift */); path = AutoSent; sourceTree = "<group>"; };
 		G00000000000000000000004 /* Tests */ = {isa = PBXGroup; children = (C00000000000000000000004 /* DraftGuardXCTests.swift */); path = Tests; sourceTree = "<group>"; };
-		G00000000000000000000005 /* Resources */ = {isa = PBXGroup; children = (C00000000000000000000003 /* Info.plist */); path = Resources; sourceTree = "<group>"; };
+		G00000000000000000000005 /* Resources */ = {isa = PBXGroup; children = (C00000000000000000000003 /* Info.plist */, C00000000000000000000008 /* AppIcon.icns */); path = Resources; sourceTree = "<group>"; };
 		G00000000000000000000006 /* Products */ = {isa = PBXGroup; children = (C00000000000000000000005 /* autoSent.app */, C00000000000000000000006 /* autoSentTests.xctest */); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
@@ -56,7 +58,7 @@
 		A00000000000000000000001 /* autoSent */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = L00000000000000000000002 /* Build configuration list for PBXNativeTarget "autoSent" */;
-			buildPhases = (S00000000000000000000001 /* Sources */, F00000000000000000000001 /* Frameworks */);
+			buildPhases = (S00000000000000000000001 /* Sources */, F00000000000000000000001 /* Frameworks */, F00000000000000000000003 /* Resources */);
 			buildRules = ();
 			dependencies = ();
 			name = autoSent;
@@ -100,6 +102,10 @@
 			targets = (A00000000000000000000001 /* autoSent */, A00000000000000000000002 /* autoSentTests */);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F00000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000007 /* AppIcon.icns in Resources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		S00000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B00000000000000000000001 /* AutoSent.swift in Sources */, B00000000000000000000002 /* DraftGuard.swift in Sources */, B00000000000000000000005 /* SendResult.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };

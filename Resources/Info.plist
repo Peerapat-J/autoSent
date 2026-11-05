@@ -4,6 +4,7 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleExecutable</key><string>autoSent</string>
+    <key>CFBundleIconFile</key><string>AppIcon.icns</string>
     <key>CFBundleIdentifier</key><string>com.peerapatj.autoSent</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>autoSent</string>
